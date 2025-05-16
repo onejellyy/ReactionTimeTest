@@ -1,14 +1,13 @@
+"use client"
+
 import type React from "react"
 import Link from "next/link"
 import { FileText, GalleryThumbnailsIcon as Gallery, Home, LogOut, Settings, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAdmin } from "@/contexts/admin-context"
-import type { ReactNode } from "react"
 
 // 클라이언트 컴포넌트로 분리
 function AdminHeader() {
-  "use client"
-
   const { logout } = useAdmin()
 
   return (
@@ -28,14 +27,10 @@ function AdminHeader() {
   )
 }
 
-// 클라이언트 컴포넌트로 분리
-function AdminLayoutClientComponent({ children }: { children: React.ReactNode }) {
-  "use client"
-
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const { isAdmin } = useAdmin()
 
-  if (!isAdmin) {
-    // 클라이언트 사이드에서 리다이렉트
+  if (typeof window !== "undefined" && !isAdmin) {
     window.location.href = "/"
     return null
   }
@@ -96,8 +91,4 @@ function AdminLayoutClientComponent({ children }: { children: React.ReactNode })
       </div>
     </div>
   )
-}
-
-export default function AdminLayout({ children }: { children: ReactNode }) {
-  return <AdminLayoutClientComponent>{children}</AdminLayoutClientComponent>
 }
