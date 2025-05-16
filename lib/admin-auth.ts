@@ -4,15 +4,15 @@ import { useEffect, useState } from "react"
 import { useAdmin } from "@/contexts/admin-context"
 
 export function useAdminAuth() {
-  const { isAdmin, isLoading } = useAdmin()
+  const { isAdmin } = useAdmin()
   const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
 
   useEffect(() => {
     // 관리자 상태 확인
-    if (!isLoading) {
-      setIsAuthenticated(isAdmin)
-    }
-  }, [isAdmin, isLoading])
+    setIsAuthenticated(isAdmin)
+    setIsLoading(false)
+  }, [isAdmin])
 
   return { isAuthenticated, isLoading }
 }
