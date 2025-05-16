@@ -174,3 +174,40 @@ export const getAllOrders = async (req: Request, res: Response) => {
     })
   }
 }
+
+// 최근 판매 내역 가져오기
+export const getRecentSales = async (req: Request, res: Response) => {
+  try {
+    const limit = Number.parseInt(req.query.limit as string) || 5
+
+    const orders = await Order.find()
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .populate("user", "name email")
+      .populate("items.artwork", "title price image")
+
+    // 응답 형식에 맞게 데이터 변환
+    const recentSales = orders
+      .flatMap((order) =>
+        order.items.map((item) => ({
+          _id: item._id,
+          title: item.title,
+          buyer: order.user.name,
+          price: item.price,
+          date: order.createdAt,
+        })),
+      )
+      .slice(0, limit)
+
+    res.status(200).json({
+      success: true,
+      count: recentSales.length,
+      data: recentSales,
+    })
+  } catch (error: any) {
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    })
+  }
+}

@@ -9,6 +9,7 @@ import authRoutes from "./routes/auth.routes"
 import userRoutes from "./routes/user.routes"
 import artworkRoutes from "./routes/artwork.routes"
 import orderRoutes from "./routes/order.routes"
+import dashboardRoutes from "./routes/dashboard.routes"
 
 // 환경 변수 로드
 dotenv.config()
@@ -32,6 +33,7 @@ app.use("/api/auth", authRoutes)
 app.use("/api/users", userRoutes)
 app.use("/api/artworks", artworkRoutes)
 app.use("/api/orders", orderRoutes)
+app.use("/api/dashboard", dashboardRoutes)
 
 // 기본 라우트
 app.get("/", (req, res) => {

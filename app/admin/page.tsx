@@ -6,30 +6,65 @@ import { BarChart3, DollarSign, ShoppingCart, Users } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAdminAuth } from "@/lib/admin-auth"
+import { getDashboardData } from "@/lib/dashboard-service"
+
+// 판매 내역 타입 정의
+interface Sale {
+  _id: string
+  title: string
+  buyer: string
+  price: number
+  date: string
+}
+
+// 인기 작품 타입 정의
+interface PopularArtwork {
+  _id: string
+  title: string
+  year: string
+  views: number
+  sales: number
+}
 
 export default function AdminDashboard() {
   const { isAuthenticated, isLoading } = useAdminAuth()
+  const [isDataLoading, setIsDataLoading] = useState(true)
   const [stats, setStats] = useState({
     totalArtworks: 0,
     totalSales: 0,
     totalRevenue: 0,
     totalVisitors: 0,
   })
+  const [recentSales, setRecentSales] = useState<Sale[]>([])
+  const [popularArtworks, setPopularArtworks] = useState<PopularArtwork[]>([])
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    // 실제 구현에서는 API 호출로 통계 데이터를 가져옵니다
-    // 이 예제에서는 로컬 스토리지에서 작품 데이터를 가져와 통계를 계산합니다
-    const artworksData = localStorage.getItem("artworks")
-    const artworks = artworksData ? JSON.parse(artworksData) : []
+    const fetchDashboardData = async () => {
+      if (!isAuthenticated) return
 
-    // 임의의 통계 데이터 생성
-    setStats({
-      totalArtworks: artworks.length || 9,
-      totalSales: Math.floor(Math.random() * 50) + 10,
-      totalRevenue: (Math.floor(Math.random() * 5000) + 1000) * 10000,
-      totalVisitors: Math.floor(Math.random() * 1000) + 500,
-    })
-  }, [])
+      setIsDataLoading(true)
+      try {
+        const result = await getDashboardData()
+
+        if (result.success) {
+          setStats(result.stats)
+          setRecentSales(result.recentSales)
+          setPopularArtworks(result.popularArtworks)
+          setError(null)
+        } else {
+          setError(result.error)
+        }
+      } catch (err) {
+        console.error("대시보드 데이터 로딩 중 오류:", err)
+        setError("데이터를 불러오는 중 오류가 발생했습니다.")
+      } finally {
+        setIsDataLoading(false)
+      }
+    }
+
+    fetchDashboardData()
+  }, [isAuthenticated])
 
   if (isLoading) {
     return <div className="flex items-center justify-center h-full">로딩 중...</div>
@@ -45,102 +80,120 @@ export default function AdminDashboard() {
         <h1 className="text-3xl font-bold tracking-tight">대시보드</h1>
         <p className="text-gray-500">작품 관리 및 판매 현황을 확인하세요.</p>
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">총 작품 수</CardTitle>
-            <BarChart3 className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalArtworks}점</div>
-            <p className="text-xs text-gray-500">전체 등록된 작품 수</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">판매 작품 수</CardTitle>
-            <ShoppingCart className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalSales}점</div>
-            <p className="text-xs text-gray-500">지금까지 판매된 작품 수</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">총 수익</CardTitle>
-            <DollarSign className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalRevenue.toLocaleString()}원</div>
-            <p className="text-xs text-gray-500">총 판매 수익</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">방문자 수</CardTitle>
-            <Users className="h-4 w-4 text-gray-500" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.totalVisitors}명</div>
-            <p className="text-xs text-gray-500">이번 달 방문자 수</p>
-          </CardContent>
-        </Card>
-      </div>
-      <Tabs defaultValue="recent">
-        <TabsList>
-          <TabsTrigger value="recent">최근 판매</TabsTrigger>
-          <TabsTrigger value="popular">인기 작품</TabsTrigger>
-        </TabsList>
-        <TabsContent value="recent" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>최근 판매 내역</CardTitle>
-              <CardDescription>최근에 판매된 작품 목록입니다.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="flex items-center justify-between border-b pb-2">
-                    <div>
-                      <p className="font-medium">작품 제목 {i}</p>
-                      <p className="text-sm text-gray-500">구매자: 홍길동{i}</p>
+
+      {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md">{error}</div>}
+
+      {isDataLoading ? (
+        <div className="text-center py-10">데이터를 불러오는 중...</div>
+      ) : (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">총 작품 수</CardTitle>
+                <BarChart3 className="h-4 w-4 text-gray-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalArtworks}점</div>
+                <p className="text-xs text-gray-500">전체 등록된 작품 수</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">판매 작품 수</CardTitle>
+                <ShoppingCart className="h-4 w-4 text-gray-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalSales}점</div>
+                <p className="text-xs text-gray-500">지금까지 판매된 작품 수</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">총 수익</CardTitle>
+                <DollarSign className="h-4 w-4 text-gray-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalRevenue.toLocaleString()}원</div>
+                <p className="text-xs text-gray-500">총 판매 수익</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">방문자 수</CardTitle>
+                <Users className="h-4 w-4 text-gray-500" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.totalVisitors}명</div>
+                <p className="text-xs text-gray-500">이번 달 방문자 수</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Tabs defaultValue="recent">
+            <TabsList>
+              <TabsTrigger value="recent">최근 판매</TabsTrigger>
+              <TabsTrigger value="popular">인기 작품</TabsTrigger>
+            </TabsList>
+            <TabsContent value="recent" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>최근 판매 내역</CardTitle>
+                  <CardDescription>최근에 판매된 작품 목록입니다.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {recentSales.length > 0 ? (
+                    <div className="space-y-2">
+                      {recentSales.map((sale) => (
+                        <div key={sale._id} className="flex items-center justify-between border-b pb-2">
+                          <div>
+                            <p className="font-medium">{sale.title}</p>
+                            <p className="text-sm text-gray-500">구매자: {sale.buyer}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium">{sale.price.toLocaleString()}원</p>
+                            <p className="text-sm text-gray-500">{new Date(sale.date).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                    <div className="text-right">
-                      <p className="font-medium">{(650000 + i * 50000).toLocaleString()}원</p>
-                      <p className="text-sm text-gray-500">{new Date().toLocaleDateString()}</p>
+                  ) : (
+                    <div className="text-center py-6 text-gray-500">최근 판매 내역이 없습니다.</div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+            <TabsContent value="popular" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle>인기 작품</CardTitle>
+                  <CardDescription>가장 많이 조회된 작품 목록입니다.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {popularArtworks.length > 0 ? (
+                    <div className="space-y-2">
+                      {popularArtworks.map((artwork) => (
+                        <div key={artwork._id} className="flex items-center justify-between border-b pb-2">
+                          <div>
+                            <p className="font-medium">{artwork.title}</p>
+                            <p className="text-sm text-gray-500">{artwork.year} 작품</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-medium">{artwork.views.toLocaleString()}회 조회</p>
+                            <p className="text-sm text-gray-500">{artwork.sales}개 판매</p>
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        <TabsContent value="popular" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>인기 작품</CardTitle>
-              <CardDescription>가장 많이 조회된 작품 목록입니다.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {[3, 1, 5, 2, 4].map((i) => (
-                  <div key={i} className="flex items-center justify-between border-b pb-2">
-                    <div>
-                      <p className="font-medium">작품 제목 {i}</p>
-                      <p className="text-sm text-gray-500">{2020 + Math.floor(i / 3)}년 작품</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="font-medium">{1000 - i * 100}회 조회</p>
-                      <p className="text-sm text-gray-500">{i}개 판매</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
+                  ) : (
+                    <div className="text-center py-6 text-gray-500">인기 작품 데이터가 없습니다.</div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </>
+      )}
     </div>
   )
 }
